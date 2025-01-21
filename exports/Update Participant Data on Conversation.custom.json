@@ -1,0 +1,51 @@
+{
+  "name": "Update Participant Data on Conversation - Exported 2024-10-28 @ 16:06",
+  "integrationType": "purecloud-data-actions",
+  "actionType": "custom",
+  "config": {
+    "request": {
+      "requestUrlTemplate": "/api/v2/conversations/callbacks/${input.conversationId}/participants/${input.participantId}/attributes",
+      "requestType": "PATCH",
+      "headers": {},
+      "requestTemplate": "{\n  \"attributes\": ${input.attributes}\n}"
+    },
+    "response": {
+      "translationMap": {},
+      "translationMapDefaults": {},
+      "successTemplate": "${rawResult}"
+    }
+  },
+  "contract": {
+    "input": {
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "conversationId",
+          "participantId",
+          "attributes"
+        ],
+        "properties": {
+          "conversationId": {
+            "type": "string"
+          },
+          "participantId": {
+            "type": "string"
+          },
+          "attributes": {
+            "description": "The map of attribute keys to values. For example: \n{ \"attribute1\": \"value1\" }",
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "output": {
+      "successSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    }
+  },
+  "secure": false
+}

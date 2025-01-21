@@ -1,0 +1,248 @@
+inqueueCall:
+  name: {{flow_name}}
+  division: {{division}}
+  defaultLanguage: {{default_language}}
+  supportedLanguages:
+    en-us:
+      defaultLanguageSkill:
+        noValue: true
+      textToSpeech:
+        Genesys Enhanced TTS:
+          voice: en-US-CoraNeural
+  variables:
+    - stringVariable:
+        name: Flow.acceptSwitch
+        description: Indicates if the customer accepts the offer to switch to web messaging.
+        initialValue:
+          noValue: true
+    - stringVariable:
+        name: Flow.fromAddressForSMS
+        initialValue:
+          noValue: true
+    - stringVariable:
+        name: Flow.messagingURL
+        description: Points to the URL sent to a customer via SMS to start a web messaging conversation.
+        initialValue:
+          noValue: true
+    - booleanVariable:
+        name: Flow.promptToSwitch
+        description: Controls whether the customer is prompted to switch to web messaging. Set to false if the customer declines or if there was an error processing the request.
+        initialValue:
+          lit: true
+    - stringVariable:
+        name: Flow.receivedMessage
+        description: Indicates whether the customer received the SMS.
+        initialValue:
+          noValue: true
+  settingsInQueueCall:
+    holdMusic:
+      lit:
+        name: PromptSystem.on_hold_music
+  settingsActionDefaults:
+    playAudioOnSilence:
+      timeout:
+        lit:
+          seconds: 40
+    detectSilence:
+      timeout:
+        lit:
+          seconds: 40
+    callData:
+      processingPrompt:
+        lit:
+          name: PromptSystem.processing
+    collectInput:
+      noEntryTimeout:
+        lit:
+          seconds: 5
+    dialByExtension:
+      interDigitTimeout:
+        lit:
+          seconds: 6
+    transferToUser:
+      connectTimeout:
+        noValue: true
+    transferToNumber:
+      connectTimeout:
+        noValue: true
+    transferToGroup:
+      connectTimeout:
+        noValue: true
+    transferToFlowSecure:
+      connectTimeout:
+        lit:
+          seconds: 15
+  settingsErrorHandling:
+    errorHandling:
+      disconnect:
+        none: true
+    preHandlingAudio:
+      tts: Sorry, an error occurred. Please try your call again.
+  settingsPrompts:
+    ensureAudioInPrompts: false
+    promptMediaToValidate:
+      - mediaType: audio
+      - mediaType: tts
+  startUpTaskActions:
+    - updateData:
+        name: Initialize SMS variables
+        statements:
+          - string:
+              variable: Flow.messagingURL
+              value:
+                lit: "https://agnescorpuz.github.io/switch-voice-to-web-messaging/"
+          - string:
+              variable: Flow.fromAddressForSMS
+              value:
+                lit: "{{sms_number}}"
+    - setParticipantData:
+        name: Use same Q for messaging
+        attributes:
+          - attribute:
+              name:
+                lit: targetQueueId
+              value:
+                exp: Call.CurrentQueue.id
+    - setParticipantData:
+        name: Save caller ANI to conversation
+        attributes:
+          - attribute:
+              name:
+                lit: phoneNumber
+              value:
+                exp: ToPhoneNumber(Call.Ani).e164
+    - playEstimatedWaitTime:
+        name: Play Estimated Wait Time
+        estimatedWaitTime:
+          exp: Call.EstimatedWaitTime
+        roundingInterval:
+          lit:
+            minutes: 5
+        specificRoundingIntervals:
+          - lit:
+              seconds: 30
+          - lit:
+              minutes: 1
+          - lit:
+              minutes: 2
+          - lit:
+              minutes: 5
+        playbackMode: about
+    - decision:
+        name: Decision
+        condition:
+          exp: Flow.promptToSwitch
+        outputs:
+          "yes":
+            actions:
+              - collectInput:
+                  name: Collect Input
+                  inputData:
+                    var: Flow.acceptSwitch
+                  digits:
+                    exact: 1
+                  interDigitTimeout:
+                    noValue: true
+                  noEntryTimeout:
+                    noValue: true
+                  inputAudio:
+                    tts: Instead of waiting, we can service you more quickly via web messaging. If you would like to proceed with this option, press 1 now.
+                  acceptJustStar:
+                    lit: false
+                  acceptJustPound:
+                    lit: false
+                  verificationType: none
+                  outputs:
+                    success:
+                      actions:
+                        - decision:
+                            name: Did they press 1?
+                            condition:
+                              exp: Flow.acceptSwitch == "1"
+                            outputs:
+                              "yes":
+                                actions:
+                                  - callData:
+                                      name: Send SMS with URL
+                                      processingPrompt:
+                                        noValue: true
+                                      timeout:
+                                        lit:
+                                          minutes: 1
+                                      category:
+                                        {{data_action_category}}:
+                                          dataAction:
+                                            {{send_agentless_message_data_action}}:
+                                              inputs:
+                                                fromAddress:
+                                                  exp: Flow.fromAddressForSMS
+                                                toAddress:
+                                                  exp: ToPhoneNumber(Call.Ani).e164
+                                                toAddressMessengerType:
+                                                  lit: sms
+                                                textBody:
+                                                  exp: Append(Flow.messagingURL, "?cId=", Call.ConversationId)
+                                              successOutputs:
+                                                conversationId:
+                                                  noValue: true
+                                  - playAudio:
+                                      name: Prompt that SMS is being sent
+                                      audio:
+                                        tts: I just sent you an SMS on your mobile device.
+                                  - playAudio:
+                                      name: Play silence for 750ms
+                                      audio:
+                                        exp: AudioPlaybackOptions(ToAudioBlank(750), true)
+                                  - collectInput:
+                                      name: Confirm they received SMS
+                                      inputData:
+                                        var: Flow.receivedMessage
+                                      digits:
+                                        exact: 1
+                                      interDigitTimeout:
+                                        noValue: true
+                                      noEntryTimeout:
+                                        lit:
+                                          seconds: 15
+                                      inputAudio:
+                                        tts: If you received the SMS message, press 1. If you did not, press 2.
+                                      acceptJustStar:
+                                        lit: false
+                                      acceptJustPound:
+                                        lit: false
+                                      verificationType: none
+                                      outputs:
+                                        success:
+                                          actions:
+                                            - decision:
+                                                name: Decision
+                                                condition:
+                                                  exp: Flow.receivedMessage == "1"
+                                                outputs:
+                                                  "yes":
+                                                    actions:
+                                                      - playAudio:
+                                                          name: Play Audio
+                                                          audio:
+                                                            tts: Great. See you on chat!
+                                                      - disconnect:
+                                                          name: Disconnect
+                                  - playAudio:
+                                      name: Play Audio
+                                      audio:
+                                        tts: It looks like something went wrong. Plese continue to hold for an agent.
+              - updateData:
+                  name: Don't prompt the customer again
+                  statements:
+                    - boolean:
+                        variable: Flow.promptToSwitch
+                        value:
+                          lit: false
+    - holdMusic:
+        name: Hold Music
+        prompt:
+          exp: Flow.HoldPrompt
+        bargeInEnabled:
+          lit: false
+        playStyle:
+          entirePrompt: true

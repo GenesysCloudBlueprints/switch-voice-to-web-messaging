@@ -1,0 +1,45 @@
+{
+  "name": "Get All Customer Participant Data by ConversationId - Exported 2024-10-28 @ 16:05",
+  "integrationType": "purecloud-data-actions",
+  "actionType": "custom",
+  "config": {
+    "request": {
+      "requestUrlTemplate": "/api/v2/conversations/${input.conversationId}",
+      "requestType": "GET",
+      "headers": {},
+      "requestTemplate": "${input.rawRequest}"
+    },
+    "response": {
+      "translationMap": {
+        "attributes": "$.participants[?(@.purpose == \"customer\")].attributes"
+      },
+      "translationMapDefaults": {},
+      "successTemplate": "{\"jsonAttributes\": \"$esc.jsonEncode(${successTemplateUtils.firstFromArray(\"${attributes}\")})\"}"
+    }
+  },
+  "contract": {
+    "input": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "output": {
+      "successSchema": {
+        "type": "object",
+        "properties": {
+          "jsonAttributes": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "secure": false
+}

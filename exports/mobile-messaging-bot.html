@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+	<meta name=viewport content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Mobile Messenger</title>	
+</head>
+
+<body>
+
+  <script src="https://code.jquery.com/jquery-3.6.4.slim.min.js" integrity="sha256-a2yjHM4jnF9f54xUQakjZGaqYs/V1CYvWpoqZzC2/Bw=" crossorigin="anonymous"></script>
+
+  <script type="text/javascript" harset="utf-8"> 	
+  
+    (function (g, e, n, es, ys) {
+				g['_genesysJs'] = e;
+				g[e] = g[e] || function () {
+					(g[e].q = g[e].q || []).push(arguments)
+				};
+				g[e].t = 1 * new Date();
+				g[e].c = es;
+				ys = document.createElement('script'); ys.async = 1; ys.src = n; ys.charset = 'utf-8'; document.head.appendChild(ys);
+		})(window, 'Genesys', 'https://apps.mypurecloud.com/genesys-bootstrap/genesys.min.js', {
+      environment: 'prod',
+      deploymentId: '5ece1bc3-6b9b-4cb9-9365-b27699c87791' //Dave - Calls Switched to Messenger
+    });
+
+    // Local vars		
+    let conversationId, participantId, region;
+    
+    region = "use1";
+
+    /** 
+    * jQuery function that executes when document is ready
+    * This function is a Handler for when .ready() is called.
+    */
+    $(function() {
+        // Initialize the environment data and then initialize messenger
+        initialize().then(async response => {
+          initializeMessenger();    
+        });        
+    });
+    
+  
+    async function initialize() {
+			getQueryStringParams();
+      return true;
+    }
+    
+    /*
+     * Extract conversationId and participantId from query string parameters
+    */
+    function getQueryStringParams() {
+      console.log('getQueryStringParams');
+      var urlParams = new URLSearchParams(window.location.search);
+      for(var pair of urlParams.entries()) {
+         console.log(pair[0]+ ', '+ pair[1]);
+      }
+      conversationId = urlParams.get('cId');
+      participantId = urlParams.get('pId');
+      console.log('conversation id: ', conversationId);
+      console.log('participantId id: ', participantId);
+    }
+
+  	
+	  /**
+     * Copy conversation and participant data from original conversation to new messenger conversation
+     */
+    const copyOGIds = () => {
+			console.log('copyOGIds');
+			var newAttributes = {};
+      newAttributes.ogConversationId = conversationId;
+			newAttributes.ogParticipantId = participantId;
+
+			updateMessengerDatabase(newAttributes);
+		}
+	
+    
+    /**
+    * Updates the messenger database with the provided attributes
+    */
+    function updateMessengerDatabase(attributes) {
+      var messaging = {
+        customAttributes: attributes
+      }
+      console.log('updating messenger database" ', JSON.stringify(messaging));
+      Genesys("command", "Database.update", {messaging});
+    
+      console.log('database updated');     
+    }
+
+    /**
+     * Initializes messenger
+     */
+    const initializeMessenger = () => { 
+     
+      Genesys('subscribe', 'Journey.ready', () => {
+        console.log('journey ready');
+        Genesys('command', 'Journey.formsTrack', {});       
+      });
+      
+      Genesys('subscribe', 'Messenger.ready', () => {
+        console.log('messenger ready');
+        
+        copyOGIds();       
+      });  
+      
+      Genesys("subscribe", "Database.updated", function(e){
+        console.log("database updated: ", e.data)  // Updated database object
+        //Genesys("command", "Messenger.open"); 
+      });
+
+      Genesys("subscribe", "MessagingService.started", function({data}){
+        console.log("messaging service started: ", data)
+      });
+        
+      console.log('messenger routine initialized');
+      return true;
+		}
+    
+    
+	</script>		 
+  
+</body>
+</html>

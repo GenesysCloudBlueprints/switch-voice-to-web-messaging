@@ -1,0 +1,67 @@
+{
+  "name": "Send Agentless Outbound Message v2 - Exported 2024-10-11 @ 11:24",
+  "integrationType": "purecloud-data-actions",
+  "actionType": "custom",
+  "config": {
+    "request": {
+      "requestUrlTemplate": "/api/v2/conversations/messages/agentless",
+      "requestType": "POST",
+      "headers": {},
+      "requestTemplate": "{\n  \"fromAddress\": \"${input.fromAddress}\",\n  \"toAddress\": \"${input.toAddress}\",\n  \"toAddressMessengerType\": \"${input.toAddressMessengerType}\",\n  \"textBody\": \"${input.textBody}\"\n}"
+    },
+    "response": {
+      "translationMap": {
+        "conversationId": "$.conversationId"
+      },
+      "translationMapDefaults": {
+        "conversationId": "\"\""
+      },
+      "successTemplate": "{\"conversationId\": ${conversationId}}"
+    }
+  },
+  "contract": {
+    "input": {
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "fromAddress",
+          "toAddress",
+          "textBody"
+        ],
+        "properties": {
+          "fromAddress": {
+            "description": "The messaging address of the sender of the message. For an SMS messenger type, this must be a currently provisioned sms phone number.",
+            "type": "string"
+          },
+          "toAddress": {
+            "description": "The messaging address of the recipient of the message. For an SMS messenger type, the phone number address must be in E.164 format. E.g. +13175555555 or +34234234234.",
+            "type": "string"
+          },
+          "toAddressMessengerType": {
+            "description": "The recipient messaging address messenger type. Valid values: sms, facebook, twitter, line, whatsapp. Default value is sms.",
+            "default": "sms",
+            "type": "string"
+          },
+          "textBody": {
+            "description": "The text of the message to send.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "output": {
+      "successSchema": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "description": "The globally unique identifier for the object.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "secure": false
+}

@@ -1,0 +1,336 @@
+inboundShortMessage:
+  name: {{flow_name}}
+  division: {{division}}
+  startUpRef: "/inboundShortMessage/states/state[Initial State_10]"
+  defaultLanguage: {{default_language}}
+  supportedLanguages:
+    en-us:
+      defaultLanguageSkill:
+        noValue: true
+  variables:
+    - stringVariable:
+        name: Flow.firstName
+        initialValue:
+          noValue: true
+        isOutput: false
+    - stringVariable:
+        name: Flow.initialPrompt
+        initialValue:
+          lit: ""
+        isOutput: false
+    - stringVariable:
+        name: Flow.og_attributes
+        initialValue:
+          noValue: true
+        isOutput: false
+    - jsonVariable:
+        name: Flow.og_attributesJson
+        initialValue:
+          noValue: true
+        isOutput: false
+    - stringVariable:
+        name: Flow.og_cId
+        initialValue:
+          noValue: true
+        isOutput: false
+    - stringVariable:
+        name: Flow.phoneNumber
+        initialValue:
+          noValue: true
+        isOutput: false
+    - stringVariable:
+        name: Flow.pId
+        initialValue:
+          noValue: true
+        isOutput: false
+    - stringVariable:
+        name: Flow.preferredAgentId
+        initialValue:
+          noValue: true
+        isOutput: false
+    - agentScorePairCollectionVariable:
+        name: Flow.preferredAgentList
+        initialValue:
+          noValue: true
+        isOutput: false
+    - stringVariable:
+        name: Flow.skills
+        initialValue:
+          noValue: true
+        isOutput: false
+    - stringVariable:
+        name: Flow.targetQueueId
+        initialValue:
+          noValue: true
+        isOutput: false
+    - stringVariable:
+        name: Flow.targetQueueName
+        initialValue:
+          noValue: true
+        isOutput: false
+  settingsErrorHandling:
+    errorHandling:
+      disconnect:
+        none: true
+  states:
+    - state:
+        name: Initial State
+        refId: Initial State_10
+        actions:
+          - callTask:
+              name: Set default flow values
+              targetTaskRef: "/inboundShortMessage/tasks/task[Set Up Flow Defaults_56]"
+          - callTask:
+              name: Get original participant data
+              targetTaskRef: "/inboundShortMessage/tasks/task[Copy Participant Data from Voice Call_37]"
+          - updateData:
+              name: Create greeting prompt
+              statements:
+                - string:
+                    variable: Flow.initialPrompt
+                    value:
+                      exp: Append(Flow.initialPrompt, "One moment while we connect you with the best agent to assist you.")
+          - sendResponse:
+              name: Greet customer
+              messageBody:
+                exp: Flow.initialPrompt
+          - decision:
+              name: Set preferred agent if available
+              condition:
+                exp: IsNotSetOrEmpty(Flow.preferredAgentId)
+              outputs:
+                "no":
+                  actions:
+                    - updateData:
+                        name: Update Data
+                        statements:
+                          - agentScorePairCollection:
+                              variable: Flow.preferredAgentList
+                              value:
+                                exp: MakeListAgentScorePair(MakeList(FindUserById(Flow.preferredAgentId)), MakeList(100))
+                    - updateData:
+                        name: Update Data
+                        statements:
+                          - string:
+                              variable: Flow.initialPrompt
+                              value:
+                                exp: Append("Hi there, ", Flow.firstName, ". I will do my best to connect you with your preferred account manager on this channel.")
+          - transferToAcd:
+              name: Transfer to Queue
+              targetQueue:
+                exp: FindQueueById(Flow.targetQueueId)
+              acdSkills:
+                - acdSkill:
+                    exp: FindSkill(Flow.skills)
+              priority:
+                lit: 0
+              preferredAgents:
+                exp: Flow.preferredAgentList
+              languageSkill:
+                noValue: true
+              directAgent:
+                noValue: true
+  tasks:
+    - task:
+        name: Copy Participant Data from Voice Call
+        refId: Copy Participant Data from Voice Call_37
+        actions:
+          - getParticipantData:
+              name: Get call conversationId from PD
+              attributes:
+                - attribute:
+                    name:
+                      lit: ogConversationId
+                    variable: Flow.og_cId
+          - callData:
+              name: Fetch all original call PD attributes
+              timeout:
+                lit:
+                  minutes: 1
+              category:
+                {{data_action_category}}:
+                  dataAction:
+                    {{get_cust_participant_data_data_action}}:
+                      inputs:
+                        conversationId:
+                          exp: Flow.og_cId
+                      successOutputs:
+                        jsonAttributes:
+                          var: Flow.og_attributes
+                      failureOutputs:
+                        errorCode:
+                          noValue: true
+                        status:
+                          noValue: true
+                        correlationId:
+                          noValue: true
+                        entityId:
+                          noValue: true
+                        entityName:
+                          noValue: true
+                        userMessage:
+                          noValue: true
+                        userParamsMessage:
+                          noValue: true
+                        userParams.key:
+                          noValue: true
+                        userParams.value:
+                          noValue: true
+                        details.errorCode:
+                          noValue: true
+                        details.fieldName:
+                          noValue: true
+                        details.entityId:
+                          noValue: true
+                        details.entityName:
+                          noValue: true
+              outputs:
+                success:
+                  actions:
+                    - updateData:
+                        name: Convert attributes to Json
+                        statements:
+                          - json:
+                              variable: Flow.og_attributesJson
+                              value:
+                                exp: JsonParse(Flow.og_attributes)
+                    - updateData:
+                        name: Extract PD and save to variables
+                        statements:
+                          - string:
+                              variable: Flow.phoneNumber
+                              value:
+                                exp: GetJsonObjectProperty(Flow.og_attributesJson, "phoneNumber")
+                          - string:
+                              variable: Flow.targetQueueId
+                              value:
+                                exp: GetJsonObjectProperty(Flow.og_attributesJson, "targetQueueId")
+                          - string:
+                              variable: Flow.preferredAgentId
+                              value:
+                                exp: GetJsonObjectProperty(Flow.og_attributesJson, "preferredAgentId")
+                          - string:
+                              variable: Flow.skills
+                              value:
+                                exp: GetJsonObjectProperty(Flow.og_attributesJson, "skills")
+                    - callData:
+                        name: Get Customer Participant Id
+                        timeout:
+                          lit:
+                            minutes: 1
+                        category:
+                          {{data_action_category}}:
+                            dataAction:
+                              {{get_participant_id_data_action}}:
+                                inputs:
+                                  conversationId:
+                                    exp: Message.ConversationId
+                                successOutputs:
+                                  customerParticipantId:
+                                    var: Flow.pId
+                                failureOutputs:
+                                  errorCode:
+                                    noValue: true
+                                  status:
+                                    noValue: true
+                                  correlationId:
+                                    noValue: true
+                                  entityId:
+                                    noValue: true
+                                  entityName:
+                                    noValue: true
+                                  userMessage:
+                                    noValue: true
+                                  userParamsMessage:
+                                    noValue: true
+                                  userParams.key:
+                                    noValue: true
+                                  userParams.value:
+                                    noValue: true
+                                  details.errorCode:
+                                    noValue: true
+                                  details.fieldName:
+                                    noValue: true
+                                  details.entityId:
+                                    noValue: true
+                                  details.entityName:
+                                    noValue: true
+                        outputs:
+                          success:
+                            actions:
+                              - callData:
+                                  name: Copy call PD to message PD
+                                  timeout:
+                                    lit:
+                                      minutes: 1
+                                  category:
+                                    {{data_action_category}}:
+                                      dataAction:
+                                        {{update_participant_data_data_action}}:
+                                          inputs:
+                                            conversationId:
+                                              exp: Message.ConversationId
+                                            participantId:
+                                              exp: Flow.pId
+                                            attributes:
+                                              exp: Flow.og_attributes
+                                          failureOutputs:
+                                            errorCode:
+                                              noValue: true
+                                            status:
+                                              noValue: true
+                                            correlationId:
+                                              noValue: true
+                                            entityId:
+                                              noValue: true
+                                            entityName:
+                                              noValue: true
+                                            userMessage:
+                                              noValue: true
+                                            userParamsMessage:
+                                              noValue: true
+                                            userParams.key:
+                                              noValue: true
+                                            userParams.value:
+                                              noValue: true
+                                            details.errorCode:
+                                              noValue: true
+                                            details.fieldName:
+                                              noValue: true
+                                            details.entityId:
+                                              noValue: true
+                                            details.entityName:
+                                              noValue: true
+                                  outputs:
+                                    success:
+                                      actions:
+                                        - endTask:
+                                            name: End Task
+                                            outputPath:
+                                              name: Success
+          - endTask:
+              name: End Task
+              outputPath:
+                name: default
+        outputPaths:
+          - outputPath:
+              name: Success
+    - task:
+        name: Set Up Flow Defaults
+        refId: Set Up Flow Defaults_56
+        actions:
+          - updateData:
+              name: Set default target queue
+              statements:
+                - string:
+                    variable: Flow.targetQueueName
+                    value:
+                      lit: Service
+                - string:
+                    variable: Flow.targetQueueId
+                    value:
+                      lit: {{queue_id}}
+          - endTask:
+              name: End Task
+              outputPath:
+                name: default

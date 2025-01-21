@@ -1,0 +1,55 @@
+{
+  "name": "Get Participant Id for Customer - Exported 2024-10-28 @ 16:06",
+  "integrationType": "purecloud-data-actions",
+  "actionType": "custom",
+  "config": {
+    "request": {
+      "requestUrlTemplate": "/api/v2/conversations/${input.conversationId}",
+      "requestType": "GET",
+      "headers": {},
+      "requestTemplate": "${input.rawRequest}"
+    },
+    "response": {
+      "translationMap": {
+        "participantIdArray": "$.participants[?(@.purpose ==\"customer\")].id"
+      },
+      "translationMapDefaults": {
+        "participantIdArray": "[\"\"]"
+      },
+      "successTemplate": "{\n\"customerParticipantId\": ${successTemplateUtils.firstFromArray(\"${participantIdArray}\", \"$esc.quote $esc.quote\")}\n}"
+    }
+  },
+  "contract": {
+    "input": {
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "description": "Gets the conversation participants",
+        "type": "object",
+        "required": [
+          "conversationId"
+        ],
+        "properties": {
+          "conversationId": {
+            "description": "The conversation ID.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "output": {
+      "successSchema": {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "description": "Returns the conversation.",
+        "type": "object",
+        "properties": {
+          "customerParticipantId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "secure": false
+}
