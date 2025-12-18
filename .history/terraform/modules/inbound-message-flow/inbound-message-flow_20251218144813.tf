@@ -1,5 +1,6 @@
 resource "genesyscloud_flow" "inbound_message_flow" {
   filepath = "${path.module}/Switch from Voice Channel with Context.yaml"
+  file_content_hash = filesha256("${path.module}/Switch from Voice Channel with Context.yaml")
   substitutions = {
     flow_name             = var.flow_name
     division              = "Home"
